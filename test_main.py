@@ -39,8 +39,12 @@ def test_parse_message_has_ref_and_deleted():
     assert parsed_message['deleted'] == True
     assert parsed_message['ref'] == 'refs/heads/prs_in_one_bucket'
 
-def test_parse_branch_name_throws_when_invalid_reference():
+def test_parse_reference_throws_when_invalid_reference():
     reference = {'ref' : 'invalid'}
     with pytest.raises(ValueError):
         parse_branch_name(reference)
 
+def test_parse_valid_reference():
+    branch_name = 'branch_name'
+    reference = {'ref' : 'refs/heads/%s' %branch_name}
+    assert branch_name == parse_branch_name(reference)
