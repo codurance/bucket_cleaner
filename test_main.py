@@ -4,6 +4,7 @@ from mock import MagicMock
 import datetime
 from dateutil.tz import tzutc
 from itertools import repeat
+from mock import call
 
 SNS_MESSAGE = {
     "Records": [
@@ -103,4 +104,15 @@ def test_delete_objects_for_keys_uses_s3_client_to_delete_objects():
     delete_objects_for_keys(s3client , list_of_keys)
     s3client.delete_objects.assert_called_once_with(Bucket=BUCKET_NAME, Delete={'Objects' : list_of_keys})
 
+def test_delete_objects_uses_s3_client_twice_to_delete_1001_objects():
+    key = {'Key': 'x'}
+    keys = list(repeat(key, 1001))
+    s3client = MagicMock()
+    s3client.delete_objects = MagicMock()
+    delete_objects_for_keys(s3client, keys)
+    s3client.delete_objects.assert_has_calls(
+            [call(Bucket=BUCKET_NAME, Delete={'Objects' : list(repeat(key, 1000))}),
+                call(Bucket=BUCKET_NAME, Delete={'Objects' : list(repeat(key, 1))})]
+            )
+    print(s3client.call_count)
 
