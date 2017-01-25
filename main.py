@@ -9,8 +9,9 @@ def lambda_handler(event, context):
     if (is_closed_pr(parsed_message)):
         branch_name = parse_branch_name(parsed_message)
         paginator = get_bucket_paginator()
-        objects_to_delete = objects_of_branch(paginator, branch_name)
-        delete_objects_of_bucket(get_s3client(), objects_to_delete)
+        objects = objects_of_branch(paginator, branch_name)
+        object_keys = extract_object_keys(objects)
+        delete_objects_for_keys(get_s3client(), object_keys)
     else:
         return 'PR event is not closed'
 
@@ -34,13 +35,15 @@ def parse_message(event):
     return parsed_message
 
 def objects_of_branch(paginator, branch_name):
-    page_iterator = paginator.paginate(Bucket = BUCKET_NAME, Prefix = FOLDER_FORMAT %branch_name)
+    page_iterator = paginator.paginate(Bucket=BUCKET_NAME, Prefix=FOLDER_FORMAT %branch_name)
 
-    return reduce(lambda page, acc: page + acc, page_iterator, [])
+    return reduce(lambda acc, page: page['Contents'] + acc, page_iterator, [])
 
 def extract_object_keys(objects):
     return [{'Key' : k} for k in [obj['Key']
-        for obj in objects.get('Contents', [])]]
+        for obj in objects]]
 
-def delete_objects_of_bucket(s3client, keys):
+def delete_objects_for_keys(s3client, keys):
+    print(keys)
     s3client.delete_objects(Bucket=BUCKET_NAME, Delete={'Objects' : keys})
+

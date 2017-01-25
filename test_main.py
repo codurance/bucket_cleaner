@@ -3,6 +3,7 @@ import pytest
 from mock import MagicMock
 import datetime
 from dateutil.tz import tzutc
+from itertools import repeat
 
 SNS_MESSAGE = {
     "Records": [
@@ -56,53 +57,50 @@ def test_parse_is_closed_pr():
     deleted = {'deleted' : True}
     assert is_closed_pr(deleted) == True
 
+def generate_pages(pages_count, objects_per_page):
+    objects_of_page = {'Contents':list(repeat({}, objects_per_page))}
+    return list(repeat(objects_of_page , pages_count))
+
 def test_list_of_objects_of_a_branch_is_empty_if_there_is_no_pages():
     paginator = MagicMock()
-    paginator.paginate = MagicMock(return_value=[])
+    pages = generate_pages(0, 0)
+    paginator.paginate = MagicMock(return_value=pages)
     assert len(objects_of_branch(paginator, "no_branch_name")) == 0
 
 def test_list_of_objects_of_a_branch_is_empty_if_there_is_one_empty_page():
     paginator = MagicMock()
-    empty_page = []
-    pages = [empty_page]
+    pages = generate_pages(1, 0)
     paginator.paginate = MagicMock(return_value=pages)
     assert len(objects_of_branch(paginator, "no_branch_name")) == 0
 
-def test_list_of_objects_of_a_branch_gives_one_object_when_only_one_page_and_one_object():
+def test_list_of_objects_of_a_branch_gives_two_objects_when_two_pages_and_one_object_per_page():
     paginator = MagicMock()
-    page = [{}]
-    pages = [page]
-    paginator.paginate = MagicMock(return_value=pages)
-    assert len(objects_of_branch(paginator, "no_branch_name")) == 1
-
-def test_list_of_objects_of_a_branch_gives_two_object_when_one_page_and_two_object():
-    paginator = MagicMock()
-    page = [{}, {}]
-    pages = [page]
+    pages = generate_pages(2, 1)
     paginator.paginate = MagicMock(return_value=pages)
     assert len(objects_of_branch(paginator, "no_branch_name")) == 2
 
-def test_list_of_objects_of_a_branch_gives_two_object_when_two_pages_and_one_object_per_page():
+def test_list_of_objects_of_a_branch_gives_four_objects_when_two_pages_and_two_object_per_page():
     paginator = MagicMock()
-    page = [{}]
-    pages = [page, page]
+    pages = generate_pages(2, 2)
     paginator.paginate = MagicMock(return_value=pages)
-    assert len(objects_of_branch(paginator, "no_branch_name")) == 2
+    assert len(objects_of_branch(paginator, "no_branch_name")) == 4
 
 def test_extract_object_keys_gives_empty_array_when_no_objects():
-    assert extract_object_keys({'Contents': []}) == []
+    assert extract_object_keys([]) == []
 
 def test_extract_object_keys_gives_an_object_when_contents_field_has_an_object():
-    page_with_one_element = {u'Name': 'codurance-site-pr', 'ResponseMetadata': {'HTTPStatusCode': 200, 'RetryAttempts': 0, 'HostId': 'zznSWrPmIfD1D8GXi8DkJAQ09zmWYYbORevgA7JThqKlN/5qOr7bQPIBOqNeW973uyzxsIxk8R0=', 'RequestId': 'B5AA92BCC7BCC8D5', 'HTTPHeaders': {'x-amz-bucket-region': 'eu-west-1', 'x-amz-id-2': 'zznSWrPmIfD1D8GXi8DkJAQ09zmWYYbORevgA7JThqKlN/5qOr7bQPIBOqNeW973uyzxsIxk8R0=', 'server': 'AmazonS3', 'transfer-encoding': 'chunked', 'x-amz-request-id': 'B5AA92BCC7BCC8D5', 'date': 'Wed, 25 Jan 2017 12:24:33 GMT', 'content-type': 'application/xml'}}, u'MaxKeys': 1000, u'Prefix': 'site-prs_in_one_bucket/atom.xml', u'Marker': u'', u'EncodingType': 'url', u'IsTruncated': False, u'Contents': [{u'LastModified': datetime.datetime(2017, 1, 24, 16, 31, 24, tzinfo=tzutc()), u'ETag': '"08023ee06b6f1c34c6a9648a8bf3fd4c"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/atom.xml', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 32084}]}
+    page_with_one_element = [{u'LastModified': datetime.datetime(2017, 1, 24, 16, 31, 24, tzinfo=tzutc()), u'ETag': '"08023ee06b6f1c34c6a9648a8bf3fd4c"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/atom.xml', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 32084}]
     assert extract_object_keys(page_with_one_element) == [{'Key' : 'site-prs_in_one_bucket/atom.xml' }]
 
 def test_extract_object_keys_gives_three_objects_when_contents_field_has_three_objects():
-    page_with_three_elements= {u'Name': 'codurance-site-pr', 'ResponseMetadata': {'HTTPStatusCode': 200, 'RetryAttempts': 0, 'HostId': 'xs6iOqZ/XANcbGOaW8vA3UNHrAA5FClThFl4WLp5TVLPR3wxhCmkbnVKR7EUSbEXjfNu+ljv1Qc=', 'RequestId': '31243B5D2F0295A9', 'HTTPHeaders': {'x-amz-bucket-region': 'eu-west-1', 'x-amz-id-2': 'xs6iOqZ/XANcbGOaW8vA3UNHrAA5FClThFl4WLp5TVLPR3wxhCmkbnVKR7EUSbEXjfNu+ljv1Qc=', 'server': 'AmazonS3', 'transfer-encoding': 'chunked', 'x-amz-request-id': '31243B5D2F0295A9', 'date': 'Wed, 25 Jan 2017 14:05:00 GMT', 'content-type': 'application/xml'}}, u'MaxKeys': 1000, u'Prefix': 'site-prs_in_one_bucket/folder', u'Marker': u'', u'EncodingType': 'url', u'IsTruncated': False, u'Contents': [{u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 2, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}, {u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 9, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/asdf/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}, {u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 11, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/asdff/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}]}
+    page_with_three_elements = [{u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 2, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}, {u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 9, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/asdf/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}, {u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 11, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/asdff/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}]
     assert extract_object_keys(page_with_three_elements) == [{u'Key': u'site-prs_in_one_bucket/folder/'}, {u'Key': u'site-prs_in_one_bucket/folder/asdf/'}, {u'Key': u'site-prs_in_one_bucket/folder/asdff/'}]
 
-def test_delete_objects_of_bucket_uses_s3_client_to_delete_objects():
+def test_delete_objects_for_keys_uses_s3_client_to_delete_objects():
     list_of_keys = [{'Key':'1'}, {'Key', '2'}]
     s3client = MagicMock()
     s3client.delete_objects = MagicMock()
-    delete_objects_of_bucket(s3client , list_of_keys)
+    delete_objects_for_keys(s3client , list_of_keys)
     s3client.delete_objects.assert_called_once_with(Bucket=BUCKET_NAME, Delete={'Objects' : list_of_keys})
+
+
