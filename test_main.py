@@ -29,7 +29,13 @@ SNS_MESSAGE = {
     ]
 }
 
-def test_parse_message_can_extract_empty_message():
+def test_parse_message_raises_when_empty_message():
     empty_message = {'Records' : [ { 'Sns' : { 'Message': '' } }]}
     with pytest.raises(ValueError):
         parse_message(empty_message)
+
+def test_parse_message_has_ref_and_deleted():
+    parsed_message = parse_message(SNS_MESSAGE)
+    assert parsed_message['deleted'] == True
+    assert parsed_message['ref'] == 'refs/heads/prs_in_one_bucket'
+
