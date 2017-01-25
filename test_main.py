@@ -1,5 +1,8 @@
 from main import *
 import pytest
+from mock import MagicMock
+import datetime
+from dateutil.tz import tzutc
 
 SNS_MESSAGE = {
     "Records": [
@@ -53,3 +56,42 @@ def test_parse_is_closed_pr():
     deleted = {'deleted' : True}
     assert is_closed_pr(deleted) == True
 
+def test_list_of_objects_of_a_branch_is_empty_if_there_is_no_pages():
+    paginator = MagicMock()
+    paginator.paginate = MagicMock(return_value=[])
+    assert len(objects_of_branch(paginator, "no_branch_name")) == 0
+
+def test_list_of_objects_of_a_branch_is_empty_if_there_is_one_empty_page():
+    paginator = MagicMock()
+    empty_page = []
+    pages = [empty_page]
+    paginator.paginate = MagicMock(return_value=pages)
+    assert len(objects_of_branch(paginator, "no_branch_name")) == 0
+
+def test_list_of_objects_of_a_branch_gives_one_object_when_only_one_page_and_one_object():
+    paginator = MagicMock()
+    page = [{}]
+    pages = [page]
+    paginator.paginate = MagicMock(return_value=pages)
+    assert len(objects_of_branch(paginator, "no_branch_name")) == 1
+
+def test_list_of_objects_of_a_branch_gives_two_object_when_one_page_and_two_object():
+    paginator = MagicMock()
+    page = [{}, {}]
+    pages = [page]
+    paginator.paginate = MagicMock(return_value=pages)
+    assert len(objects_of_branch(paginator, "no_branch_name")) == 2
+
+def test_list_of_objects_of_a_branch_gives_two_object_when_two_pages_and_one_object_per_page():
+    paginator = MagicMock()
+    page = [{}]
+    pages = [page, page]
+    paginator.paginate = MagicMock(return_value=pages)
+    assert len(objects_of_branch(paginator, "no_branch_name")) == 2
+
+def test_extract_object_keys_gives_empty_array_when_no_objects():
+    assert extract_object_keys({'Contents': []}) == []
+
+def test_extract_object_keys_gives_an_object_when_contents_field_has_an_object():
+    page = {u'Name': 'codurance-site-pr', 'ResponseMetadata': {'HTTPStatusCode': 200, 'RetryAttempts': 0, 'HostId': 'zznSWrPmIfD1D8GXi8DkJAQ09zmWYYbORevgA7JThqKlN/5qOr7bQPIBOqNeW973uyzxsIxk8R0=', 'RequestId': 'B5AA92BCC7BCC8D5', 'HTTPHeaders': {'x-amz-bucket-region': 'eu-west-1', 'x-amz-id-2': 'zznSWrPmIfD1D8GXi8DkJAQ09zmWYYbORevgA7JThqKlN/5qOr7bQPIBOqNeW973uyzxsIxk8R0=', 'server': 'AmazonS3', 'transfer-encoding': 'chunked', 'x-amz-request-id': 'B5AA92BCC7BCC8D5', 'date': 'Wed, 25 Jan 2017 12:24:33 GMT', 'content-type': 'application/xml'}}, u'MaxKeys': 1000, u'Prefix': 'site-prs_in_one_bucket/atom.xml', u'Marker': u'', u'EncodingType': 'url', u'IsTruncated': False, u'Contents': [{u'LastModified': datetime.datetime(2017, 1, 24, 16, 31, 24, tzinfo=tzutc()), u'ETag': '"08023ee06b6f1c34c6a9648a8bf3fd4c"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/atom.xml', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 32084}]}
+    assert extract_object_keys(page) == [{'Key' : 'site-prs_in_one_bucket/atom.xml' }]

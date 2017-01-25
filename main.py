@@ -30,32 +30,23 @@ def delete_objects_of_branch(branch_name):
     s3 = boto3.resource('s3')
     objects_to_delete = objects_of_branch(s3, branch_name)
     if objects_to_delete:
-        delete_objects_of_bucket(s3, objects_to_delete)
+        paginator = boto3.client('s3').get_paginator('list_objects')
+        delete_objects_of_bucket(paginator, objects_to_delete)
         return 'Deleted %s folder' %branch_name
     else:
         return 'Could not delete the folder with name: %s' %branch_name
 
-def objects_of_branch(s3, branch_name):
-    #paginator = boto3.Session.client(service_name='s3').get_paginator("list_objects")
-    paginator = boto3.client('s3').get_paginator('list_objects')
+def objects_of_branch(paginator, branch_name):
     page_iterator = paginator.paginate(Bucket = BUCKET_NAME, Prefix = FOLDER_FORMAT %branch_name)
 
-    bucket_object_list = []
-    i = 0
-    for page in page_iterator:
-        if i == 0:
-            print("ad")
-            print(page)
-        else:
-            break
-    #   bucket_object_list.append(page['Contents'])
-       # for key in page[ "Contents" ]:
-       #    keyString = key[ "Key" ]
-       #    bucket_object_list.append(keyString)
-    #s3.meta.client.list_objects(Bucket=BUCKET_NAME, Prefix=FOLDER_FORMAT %branch_name)
+    return reduce(lambda page, acc: page + acc, page_iterator, [])
 
-def delete_objects_of_bucket(s3, objects):
+def extract_object_keys(objects):
+    return [{'Key' : k} for k in [obj['Key'] 
+        for obj in objects.get('Contents', [])]]
+
+
+def delete_objects_of_bucket(s3, keys):
     delete_keys = {'Objects' : []}
-    delete_keys['Objects'] = [{'Key' : k} for k in [obj['Key'] for obj in objects.get('Contents', [])]]
-    print(delete_keys)
+    delete_keys['Objects'] = keys
     #s3.meta.client.delete_objects(Bucket=BUCKET_NAME, Delete=delete_keys)
