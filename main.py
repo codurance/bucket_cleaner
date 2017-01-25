@@ -27,11 +27,10 @@ def parse_message(event):
     return parsed_message
 
 def delete_objects_of_branch(branch_name):
-    s3 = boto3.resource('s3')
-    objects_to_delete = objects_of_branch(s3, branch_name)
+    paginator = boto3.client('s3').get_paginator('list_objects')
+    objects_to_delete = objects_of_branch(paginator, branch_name)
     if objects_to_delete:
-        paginator = boto3.client('s3').get_paginator('list_objects')
-        delete_objects_of_bucket(paginator, objects_to_delete)
+        delete_objects_of_bucket(s3.meta.client, objects_to_delete)
         return 'Deleted %s folder' %branch_name
     else:
         return 'Could not delete the folder with name: %s' %branch_name
@@ -45,8 +44,5 @@ def extract_object_keys(objects):
     return [{'Key' : k} for k in [obj['Key'] 
         for obj in objects.get('Contents', [])]]
 
-
-def delete_objects_of_bucket(s3, keys):
-    delete_keys = {'Objects' : []}
-    delete_keys['Objects'] = keys
-    #s3.meta.client.delete_objects(Bucket=BUCKET_NAME, Delete=delete_keys)
+def delete_objects_of_bucket(s3client, keys):
+    s3client.delete_objects(Bucket=BUCKET_NAME, Delete={'Objects' : keys})
