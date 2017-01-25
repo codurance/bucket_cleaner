@@ -48,3 +48,8 @@ def test_parse_valid_reference():
     branch_name = 'branch_name'
     reference = {'ref' : 'refs/heads/%s' %branch_name}
     assert branch_name == parse_branch_name(reference)
+
+def test_parse_is_closed_pr():
+    deleted = {'deleted' : True}
+    assert is_closed_pr(deleted) == True
+
