@@ -1,4 +1,4 @@
-from main import parse_message
+from main import *
 import pytest
 
 SNS_MESSAGE = {
@@ -38,4 +38,9 @@ def test_parse_message_has_ref_and_deleted():
     parsed_message = parse_message(SNS_MESSAGE)
     assert parsed_message['deleted'] == True
     assert parsed_message['ref'] == 'refs/heads/prs_in_one_bucket'
+
+def test_parse_branch_name_throws_when_invalid_reference():
+    reference = {'ref' : 'invalid'}
+    with pytest.raises(ValueError):
+        parse_branch_name(reference)
 
