@@ -36,26 +36,31 @@ SNS_MESSAGE = {
 
 def test_parse_message_raises_when_empty_message():
     empty_message = {'Records' : [ { 'Sns' : { 'Message': '' } }]}
+
     with pytest.raises(ValueError):
         parse_message(empty_message)
 
 def test_parse_message_has_ref_and_deleted():
     parsed_message = parse_message(SNS_MESSAGE)
+
     assert parsed_message['deleted'] == True
     assert parsed_message['ref'] == 'refs/heads/prs_in_one_bucket'
 
 def test_parse_reference_throws_when_invalid_reference():
     reference = {'ref' : 'invalid'}
+
     with pytest.raises(ValueError):
         parse_branch_name(reference)
 
 def test_parse_valid_reference():
     branch_name = 'branch_name'
     reference = {'ref' : 'refs/heads/%s' %branch_name}
+
     assert branch_name == parse_branch_name(reference)
 
 def test_parse_is_closed_pr():
     deleted = {'deleted' : True}
+
     assert is_closed_pr(deleted) == True
 
 def generate_pages(pages_count, objects_per_page):
@@ -64,26 +69,30 @@ def generate_pages(pages_count, objects_per_page):
 
 def test_list_of_objects_of_a_branch_is_empty_if_there_is_no_pages():
     paginator = MagicMock()
-    pages = generate_pages(0, 0)
+    pages = generate_pages(pages_count=0, objects_per_page=0)
     paginator.paginate = MagicMock(return_value=pages)
+
     assert len(objects_of_branch(paginator, "no_branch_name")) == 0
 
 def test_list_of_objects_of_a_branch_is_empty_if_there_is_one_empty_page():
     paginator = MagicMock()
-    pages = generate_pages(1, 0)
+    pages = generate_pages(pages_count=1, objects_per_page=0)
     paginator.paginate = MagicMock(return_value=pages)
+
     assert len(objects_of_branch(paginator, "no_branch_name")) == 0
 
 def test_list_of_objects_of_a_branch_gives_two_objects_when_two_pages_and_one_object_per_page():
     paginator = MagicMock()
-    pages = generate_pages(2, 1)
+    pages = generate_pages(pages_count=2, objects_per_page=1)
     paginator.paginate = MagicMock(return_value=pages)
+
     assert len(objects_of_branch(paginator, "no_branch_name")) == 2
 
 def test_list_of_objects_of_a_branch_gives_four_objects_when_two_pages_and_two_object_per_page():
     paginator = MagicMock()
-    pages = generate_pages(2, 2)
+    pages = generate_pages(pages_count=2, objects_per_page=2)
     paginator.paginate = MagicMock(return_value=pages)
+
     assert len(objects_of_branch(paginator, "no_branch_name")) == 4
 
 def test_extract_object_keys_gives_empty_array_when_no_objects():
@@ -91,17 +100,21 @@ def test_extract_object_keys_gives_empty_array_when_no_objects():
 
 def test_extract_object_keys_gives_an_object_when_contents_field_has_an_object():
     page_with_one_element = [{u'LastModified': datetime.datetime(2017, 1, 24, 16, 31, 24, tzinfo=tzutc()), u'ETag': '"08023ee06b6f1c34c6a9648a8bf3fd4c"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/atom.xml', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 32084}]
+
     assert extract_object_keys(page_with_one_element) == [{'Key' : 'site-prs_in_one_bucket/atom.xml' }]
 
 def test_extract_object_keys_gives_three_objects_when_contents_field_has_three_objects():
     page_with_three_elements = [{u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 2, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}, {u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 9, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/asdf/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}, {u'LastModified': datetime.datetime(2017, 1, 25, 14, 3, 11, tzinfo=tzutc()), u'ETag': '"d41d8cd98f00b204e9800998ecf8427e"', u'StorageClass': 'STANDARD', u'Key': u'site-prs_in_one_bucket/folder/asdff/', u'Owner': {u'DisplayName': 'mash', u'ID': '8041a9f893f115ddd3fb2d30011f24d4b5b40b32a44a540f802a484bdb43e01e'}, u'Size': 0}]
+
     assert extract_object_keys(page_with_three_elements) == [{u'Key': u'site-prs_in_one_bucket/folder/'}, {u'Key': u'site-prs_in_one_bucket/folder/asdf/'}, {u'Key': u'site-prs_in_one_bucket/folder/asdff/'}]
 
 def test_delete_objects_for_keys_uses_s3_client_to_delete_objects():
     list_of_keys = [{'Key':'1'}, {'Key', '2'}]
     s3client = MagicMock()
     s3client.delete_objects = MagicMock()
+
     delete_objects_for_keys(s3client , list_of_keys)
+
     s3client.delete_objects.assert_called_once_with(Bucket=BUCKET_NAME, Delete={'Objects' : list_of_keys})
 
 def test_delete_objects_uses_s3_client_twice_to_delete_1001_objects():
@@ -109,10 +122,12 @@ def test_delete_objects_uses_s3_client_twice_to_delete_1001_objects():
     keys = list(repeat(key, 1001))
     s3client = MagicMock()
     s3client.delete_objects = MagicMock()
-    delete_objects_for_keys(s3client, keys)
-    s3client.delete_objects.assert_has_calls(
-            [call(Bucket=BUCKET_NAME, Delete={'Objects' : list(repeat(key, 1000))}),
-                call(Bucket=BUCKET_NAME, Delete={'Objects' : list(repeat(key, 1))})]
-            )
-    print(s3client.call_count)
 
+    delete_objects_for_keys(s3client, keys)
+
+    s3client.delete_objects.assert_has_calls([
+        delete_objects_call(key, 1000),
+        delete_objects_call(key, 1)])
+
+def delete_objects_call(key, number_of_objects):
+    return call(Bucket=BUCKET_NAME, Delete={'Objects' : list(repeat(key, number_of_objects))})
